@@ -157,6 +157,8 @@ public class SpeakActivity extends Activity implements TextToSpeech.OnInitListen
         getWindow().getAttributes();
         params.gravity = Gravity.BOTTOM;
         this.getWindow().setAttributes(params);
+        this.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        
         detector = new SimpleGestureFilter(this,this);
         myVib = (Vibrator) this.getSystemService(VIBRATOR_SERVICE);
         accessibilityManager =
