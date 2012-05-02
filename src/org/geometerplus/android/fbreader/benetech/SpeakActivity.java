@@ -310,6 +310,8 @@ public class SpeakActivity extends Activity implements TextToSpeech.OnInitListen
 	protected void onStop() {
 		stopTalking();
         myApi.clearHighlighting();
+
+		LastReadPageOfCurrentBook.saveLocationOfLastReadPage(this);
 		super.onStop();
 	}
 
