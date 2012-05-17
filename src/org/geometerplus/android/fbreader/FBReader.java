@@ -325,6 +325,7 @@ public final class FBReader extends ZLAndroidActivity {
 		} catch (Throwable t) {
 		}
 		PopupPanel.restoreVisibilities(FBReaderApp.Instance());
+		ApiServerImplementation.sendEvent(this, ApiListener.EVENT_READ_MODE_OPENED);
 		LastReadPageOfCurrentBook.loadLocationOfLastReadPage(this);
         if (!accessibilityManager.isEnabled()) {
             setApplicationTitle();
@@ -333,6 +334,7 @@ public final class FBReader extends ZLAndroidActivity {
 
 	@Override
 	public void onStop() {
+		ApiServerImplementation.sendEvent(this, ApiListener.EVENT_READ_MODE_CLOSED);
 		LastReadPageOfCurrentBook.saveLocationOfLastReadPage(this);
 		PopupPanel.removeAllWindows(FBReaderApp.Instance(), this);
 		super.onStop();

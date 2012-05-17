@@ -1,5 +1,8 @@
 package org.geometerplus.android.fbreader.benetech;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
 import org.geometerplus.fbreader.fbreader.FBReaderApp;
 import org.geometerplus.fbreader.fbreader.FBView;
 import org.geometerplus.fbreader.library.Book;
@@ -9,19 +12,63 @@ import org.geometerplus.zlibrary.text.view.ZLTextParagraphCursor;
 import org.geometerplus.zlibrary.text.view.ZLTextPosition;
 import org.geometerplus.zlibrary.text.view.ZLTextWordCursor;
 
+import android.app.backup.BackupAgentHelper;
+import android.app.backup.BackupManager;
+import android.app.backup.SharedPreferencesBackupHelper;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.util.Log;
 
-/**
- * LastReadPageOfCurrentBook keeps up with the last read page of any book that the 
- * user is reading. The class heavily relies on the FBReader's ZLTextParagraphCursor.
- *  
- * @see {@link android.app.backup.BackupAgent}
+/** Creates a back up service connection (for API Levels >= FROYO) that keeps up with the 
+ * last read page of any book that the user is reading. The class heavily relies on the 
+ * FBReader API's ZLTextParagraphCursor. @see {@link android.app.backup.BackupAgent}
  * */
-public final class LastReadPageOfCurrentBook {
+public final class LastReadPageOfCurrentBook  extends BackupAgentHelper {
 	private static final String LAST_PAGE_PREFS = "last_page_preferences";
+	private static final String BACKUP_SERVICE_KEY = "AEdPqrEAAAAIqZUzcWMpHB8rbjYiGM7eUtke3U-QPrYBhSSh4w";
+	private static Method BackupManager_dataChanged;
 
+	
+	static {
+		try {
+			BackupManager_dataChanged = BackupManager.class.getMethod("dataChanged");
+		} catch (NoSuchMethodException nsme) {
+			Log.e(BackupAgentHelper.class.getSimpleName(),"unexpected " + nsme);
+		}
+	}
+	
+	/**  Activated when the last page of the current book is saved (via BackupManager(Context).dataChanged()).
+	 * @see {@link android.app.backup.BackupAgent}
+	 * @see http://developer.android.com/guide/topics/data/backup.html
+	 * */
+	public void onCreate() {
+		/*  
+		 * DURING A BACK UP OPERATION THE BACK UP MANAGER DELIVERS ALL THE 
+		 * PAGE PREFERENCE CONTENT TO A BACK UP TRANSPORT, WHICH THEN DELIVERS 
+		 * THE DATA TO GOOGLE'S CLOUD BACK UP RESOURCES (FOR DEVICES >= FROYO).
+		 * 
+		 * REFERENCED FROM: http://developer.android.com/guide/topics/data/backup.html
+		 */
+		addHelper(BACKUP_SERVICE_KEY, new SharedPreferencesBackupHelper(this, LAST_PAGE_PREFS));
+	}
+
+	private static void InvokeIf_dataChanged_IsAvailable(BackupManager bm) {
+		try {
+			if (BackupManager_dataChanged != null) {
+				BackupManager_dataChanged.invoke(bm);
+			}
+		} catch (IllegalAccessException ie) {
+			Log.e(BackupAgentHelper.class.getSimpleName(),"unexpected " + ie);
+		} catch (IllegalArgumentException e) {
+			Log.e(BackupAgentHelper.class.getSimpleName(),"unexpected " + e);
+			e.printStackTrace();
+		} catch (InvocationTargetException e) {
+			Log.e(BackupAgentHelper.class.getSimpleName(),"unexpected " + e);
+			e.printStackTrace();
+		}
+	}
+	
 	/**
 	 * Where the last page of the current book is saved (referenced with a bookId).
 	 * 
@@ -44,6 +91,12 @@ public final class LastReadPageOfCurrentBook {
 		ed.putLong("lastBook", bookId);
 		ed.putInt("" + bookId, paragraphIndex).commit();
 
+		final int currentAPIVersion = android.os.Build.VERSION.SDK_INT;
+		if (currentAPIVersion >= android.os.Build.VERSION_CODES.FROYO){
+			
+			// ACTIVATE BackupManager TO DELIVER LAST PAGE PREFERENCES
+			InvokeIf_dataChanged_IsAvailable(new BackupManager(zla));
+		} 
 	}
 
 	/**
@@ -88,4 +141,6 @@ public final class LastReadPageOfCurrentBook {
 		fbReader.openBook(book, new Bookmark(fbReader.Model.Book, 
 			view.getModel().getId(), cursor, 0, false));
 	}
+	
+	
 }
